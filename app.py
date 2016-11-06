@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 TOKENIZER = TweetTokenizer(preserve_case=False, reduce_len=True, strip_handles=True)
 STOPWORDS = set(stopwords.words('english'))\
     .union(stopwords.words('portuguese'))\
-    .union(set(['.', '..', '...', ',', '?', '!']))
+    .union(set(['#', '.', '..', '...', ',', '?', '!']))
+MAX_RESULTS_POOL = 1000
 
 ALLOWED_ORIGINS = ['*']
 
@@ -68,8 +69,8 @@ class TagAutocompleteResource:
         logger.info('word: ' + word + ' context: ' + ' '.join(context))
         lk = self.lk(context)
         logger.info('lk: ' + ' '.join(lk))
-        most_similar = self.most_similar(lk, 5 * limit)
-        return filter(lambda x: word in x[0], most_similar)
+        most_similar = self.most_similar(lk, MAX_RESULTS_POOL)
+        return filter(lambda x: word in x[0], most_similar)[:limit]
 
     def on_get(self, req, resp):
         q = req.get_param('q') or ''
