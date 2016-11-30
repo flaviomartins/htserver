@@ -1,4 +1,5 @@
 from __future__ import print_function, unicode_literals, division
+import re
 import json
 import logging
 from wsgiref import simple_server
@@ -7,20 +8,21 @@ import falcon
 
 import plac
 from gensim.models import Word2Vec
-from nltk.tokenize import TweetTokenizer
 from nltk.corpus import stopwords
+from twokenize import twokenize
 
 
 logger = logging.getLogger(__name__)
+stops = set(stopwords.words('english'))  # nltk stopwords list
+nbsp = re.compile(u"\u00a0", re.UNICODE)
 
-
-TOKENIZER = TweetTokenizer(preserve_case=False, reduce_len=True, strip_handles=True)
-STOPWORDS = set(stopwords.words('english'))\
-    .union(stopwords.words('portuguese'))\
-    .union(set(['#', '.', '..', '...', ',', '?', '!']))
 MAX_RESULTS_POOL = 1000
-
 ALLOWED_ORIGINS = ['*']
+
+
+# "foo&nbsp;bar " => "foo_bar"
+def protect_bigrams(input):
+    return nbsp.sub("_", input).strip()
 
 
 class CorsMiddleware(object):
@@ -37,7 +39,8 @@ class TagAutocompleteResource:
         self.model = model
 
     def tokens(self, q):
-        return TOKENIZER.tokenize(q)
+        nq = protect_bigrams(q)
+        return twokenize.tokenizeRawTweetText(nq)
 
     def most_similar(self, tokens, limit):
         return self.model.most_similar(positive=tokens, topn=limit)
@@ -65,10 +68,10 @@ class TagAutocompleteResource:
         tokens = self.tokens(q)
         word = tokens[-1]
         context = tokens[:-1]
-        context = filter(lambda x: x not in STOPWORDS, context)
-        logger.info('word: ' + word + ' context: ' + ' '.join(context))
+        context = filter(lambda x: x not in stops, context)
+        logger.info('word: ' + word + ' context: ' + ' | '.join(context))
         lk = self.lk(context)
-        logger.info('lk: ' + ' '.join(lk))
+        logger.info('lk: ' + ' | '.join(lk))
         most_similar = self.most_similar(lk, MAX_RESULTS_POOL)
         return filter(lambda x: word in x[0], most_similar)[:limit]
 
