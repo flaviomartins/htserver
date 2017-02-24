@@ -1,4 +1,3 @@
-from __future__ import print_function, unicode_literals, division
 import re
 import json
 import logging
@@ -33,7 +32,7 @@ class CorsMiddleware(object):
             response.set_header('Access-Control-Allow-Origin', origin)
 
 
-class TagAutocompleteResource:
+class TagAutocompleteResource(object):
 
     def __init__(self, model):
         self.model = model
@@ -68,7 +67,7 @@ class TagAutocompleteResource:
         tokens = self.tokens(q)
         word = tokens[-1]
         context = tokens[:-1]
-        context = filter(lambda x: x not in stops, context)
+        context = [x for x in context if x not in stops]
         logger.info('word: ' + word + ' context: ' + ' | '.join(context))
         lk = self.lk(context)
         logger.info('lk: ' + ' | '.join(lk))
