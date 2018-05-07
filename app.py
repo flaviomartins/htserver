@@ -87,7 +87,7 @@ class TagAutocompleteResource(object):
         # most_similar = self.most_similar(lk, MAX_RESULTS_POOL)
         sif_vectors = self.sif_vectors(lk)
         most_similar = self.model.most_similar(positive=[sif_vectors.sum(axis=0)], topn=MAX_RESULTS_POOL)
-        return filter(lambda x: word in x[0], most_similar)[:limit]
+        return filter(lambda x: word in x[0] not in set(lk), most_similar)[:limit]
 
     def on_get(self, req, resp):
         q = req.get_param('q') or ''
