@@ -6,6 +6,7 @@ from wsgiref import simple_server
 import falcon
 
 import plac
+import numpy as np
 from gensim.models import Word2Vec
 from nltk.corpus import stopwords
 from twokenize import twokenize
@@ -36,6 +37,9 @@ class TagAutocompleteResource(object):
 
     def __init__(self, model):
         self.model = model
+        self.total_freq = 0
+        for w in model.wv.vocab:
+            self.total_freq += model.wv.vocab[w].count
 
     def tokens(self, q):
         nq = protect_bigrams(q)
@@ -52,8 +56,8 @@ class TagAutocompleteResource(object):
             else:
                 hw = '#'+w
                 if hw in self.model and w in self.model:
-                    c_w = self.model.vocab[w].count
-                    c_hw = self.model.vocab[hw].count
+                    c_w = self.model.wv.vocab[w].count
+                    c_hw = self.model.wv.vocab[hw].count
                     logger.info(w + ': ' + str(c_w) + ' ' + hw + ': ' + str(c_hw))
                     if c_hw >= c_w:
                         lk.append(hw)
@@ -63,6 +67,15 @@ class TagAutocompleteResource(object):
                     lk.append(w)
         return lk
 
+    def sif_vectors(self, lk):
+        # SIF a / (a + p(w)), a = 0.001
+        a = 0.001
+        sif = np.zeros((len(lk), self.model.vector_size))
+        for i, w in enumerate(lk):
+            sif[i] = self.model[w]
+            sif[i] *= a / (a + self.model.wv.vocab[w].count / float(self.total_freq))
+        return sif
+
     def suggestions(self, q, limit):
         tokens = self.tokens(q)
         word = tokens[-1]
@@ -71,7 +84,9 @@ class TagAutocompleteResource(object):
         logger.info('word: ' + word + ' context: ' + ' | '.join(context))
         lk = self.lk(context)
         logger.info('lk: ' + ' | '.join(lk))
-        most_similar = self.most_similar(lk, MAX_RESULTS_POOL)
+        # most_similar = self.most_similar(lk, MAX_RESULTS_POOL)
+        sif_vectors = self.sif_vectors(lk)
+        most_similar = self.model.most_similar(positive=[sif_vectors.sum(axis=0)], topn=MAX_RESULTS_POOL)
         return filter(lambda x: word in x[0], most_similar)[:limit]
 
     def on_get(self, req, resp):
