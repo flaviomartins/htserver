@@ -10,11 +10,13 @@ import numpy as np
 from gensim.models import Word2Vec
 from nltk.corpus import stopwords
 from twokenize import twokenize
+from segment.segmenter import Analyzer
 
 
 logger = logging.getLogger(__name__)
 stops = set(stopwords.words('english'))  # nltk stopwords list
 nbsp = re.compile(u"\u00a0", re.UNICODE)
+segmenter = Analyzer('twitter')
 
 MAX_RESULTS_POOL = 1000
 ALLOWED_ORIGINS = ['*']
@@ -53,6 +55,12 @@ class TagAutocompleteResource(object):
         for w in context:
             if w.startswith("#") and w in self.model:
                 lk.append(w)
+                # segment hashtag into words and add them
+                inner_words = [x for x in segmenter.segment(w[1:]) if x not in stops]
+                for iw in inner_words:
+                    hw = '#'+iw
+                    if hw in self.model:
+                        lk.append(hw)
             else:
                 hw = '#'+w
                 if hw in self.model and w in self.model:
