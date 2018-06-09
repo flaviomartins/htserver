@@ -59,7 +59,7 @@ class TagAutocompleteResource(object):
                 inner_words = [x for x in segmenter.segment(w[1:]) if x not in stops]
                 for iw in inner_words:
                     hw = '#'+iw
-                    if hw in self.model:
+                    if hw != w and hw in self.model:
                         lk.append(hw)
             else:
                 hw = '#'+w
